@@ -3,13 +3,20 @@ import { Resend } from "resend";
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "method" });
 
-  const { email } = req.body;
+  // ★ JSON ボディを読み取る（Vercel は自動パースしない）
+  const body = await new Promise((resolve) => {
+    let data = "";
+    req.on("data", (chunk) => (data += chunk));
+    req.on("end", () => resolve(JSON.parse(data || "{}")));
+  });
+
+  const { email } = body;
   if (!email) return res.status(400).json({ error: "no email" });
 
   // 6桁コード生成
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-  // Vercel (Serverless) では保存場所が必要 → Cookie で保持
+  // Cookie に一時保存
   res.setHeader(
     "Set-Cookie",
     `otp_${email}=${otp}; Path=/; HttpOnly; Max-Age=300; SameSite=Strict`
